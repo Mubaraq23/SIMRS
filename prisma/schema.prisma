@@ -1,0 +1,287 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  DIREKTUR
+  DOKTER
+  PERAWAT
+  APOTEKER
+  PETUGAS_LAB
+  RADIOGRAFER
+  KASIR
+  PETUGAS_PENDAFTARAN
+  MANAJER_SDM
+  PETUGAS_INVENTARIS
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum TriagePriority {
+  P1_EMERGENCY   // Resusitasi / Merah
+  P2_URGENT      // Akut / Kuning
+  P3_NON_URGENT  // Hijau
+  P0_DECEASED    // Hitam
+}
+
+enum BedStatus {
+  AVAILABLE
+  OCCUPIED
+  CLEANING
+  MAINTENANCE
+  RESERVED
+}
+
+enum SatusehatStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Hospital {
+  id          String   @id @default(uuid())
+  code        String   @unique // Code e.g. RS-001
+  name        String
+  type        String   // Class A, B, C, D
+  address     String
+  phone       String
+  email       String
+  satusehatId String?  // Kemenkes SATUSEHAT Organization ID
+  branches    Branch[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Branch {
+  id          String       @id @default(uuid())
+  hospitalId  String
+  hospital    Hospital     @relation(fields: [hospitalId], references: [id])
+  name        String
+  address     String
+  phone       String
+  departments Department[]
+  users       User[]
+  patients    Patient[]
+  createdAt   DateTime     @default(now())
+}
+
+model Department {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  name      String   // Poliklinik Penyakit Dalam, IGD, Rawat Inap, Lab, Radiologi, Farmasi
+  code      String
+  rooms     Room[]
+  createdAt DateTime @default(now())
+}
+
+model Room {
+  id           String     @id @default(uuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  name         String     // Mawar 101, VIP 1
+  class        String     // VVIP, VIP, Class 1, Class 2, Class 3, ICU
+  beds         Bed[]
+  createdAt    DateTime   @default(now())
+}
+
+model Bed {
+  id        String    @id @default(uuid())
+  roomId    String
+  room      Room      @relation(fields: [roomId], references: [id])
+  bedNumber String
+  status    BedStatus @default(AVAILABLE)
+  dailyRate Float
+  createdAt DateTime  @default(now())
+}
+
+model User {
+  id           String       @id @default(uuid())
+  branchId     String
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  nik          String       @unique
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         Role
+  sipNumber    String?      // Surat Izin Praktik
+  strNumber    String?      // Surat Tanda Registrasi
+  strExpiry    DateTime?
+  sipExpiry    DateTime?
+  encounters   Encounter[]  @relation("DoctorEncounter")
+  cpptNotes    CpptNote[]   @relation("AuthorCppt")
+  labResults   LabResult[]  @relation("DoctorLabSign")
+  pacsReports  PacsReport[] @relation("RadiologistReport")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Patient {
+  id           String      @id @default(uuid())
+  branchId     String
+  branch       Branch      @relation(fields: [branchId], references: [id])
+  mrn          String      @unique // Medical Record Number (e.g. RM-2026-08-001)
+  nik          String      @unique // KTP 16 digit
+  name         String
+  gender       Gender
+  birthDate    DateTime
+  address      String
+  phone        String
+  bpjsCardNo   String?     // Nomor Kartu BPJS Kesehatan
+  allergies    String[]    // List of allergies
+  encounters   Encounter[]
+  billingItems Billing[]
+  createdAt    DateTime    @default(now())
+}
+
+model Encounter {
+  id             String          @id @default(uuid())
+  patientId      String
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  doctorId       String
+  doctor         User            @relation("DoctorEncounter", fields: [doctorId], references: [id])
+  serviceType    String          // RAWAT_JALAN, RAWAT_INAP, IGD, MCU
+  status         String          // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  triagePriority TriagePriority?
+  startTime      DateTime        @default(now())
+  endTime        DateTime?
+  satusehatId    String?         // FHIR Encounter ID
+  satusehatSync  SatusehatStatus @default(PENDING)
+  cpptNotes      CpptNote[]
+  prescriptions  Prescription[]
+  labOrders      LabOrder[]
+  radOrders      RadOrder[]
+  sepNumber      String?         // BPJS SEP Number
+  inacbgCode     String?         // INACBG Grouping Code
+  inacbgTariff   Float?
+  createdAt      DateTime        @default(now())
+}
+
+model CpptNote {
+  id            String    @id @default(uuid())
+  encounterId   String
+  encounter     Encounter @relation(fields: [encounterId], references: [id])
+  authorId      String
+  author        User      @relation("AuthorCppt", fields: [authorId], references: [id])
+  subjective    String    // S: Keluhan pasien
+  objective     String    // O: Hasil pemeriksaan fisik / TTV
+  assessment    String    // A: Diagnosa / ICD-10
+  plan          String    // P: Rencana terapi & CPOE
+  systolic      Int?      // Tekanan Darah Sisotlik
+  diastolic     Int?      // Tekanan Darah Diastolik
+  heartRate     Int?      // Nadi (bpm)
+  respiratory   Int?      // Pernapasan (x/mnt)
+  temperature   Float?    // Suhu (°C)
+  spo2          Int?      // Saturasi Oksigen (%)
+  news2Score    Int?      // Early Warning Score
+  icd10Code     String?   // Kode ICD-10 Utama
+  icd10Name     String?   // Deskripsi ICD-10
+  digitalSign   String?   // Hash Tanda Tangan Digital
+  createdAt     DateTime  @default(now())
+}
+
+model Prescription {
+  id          String             @id @default(uuid())
+  encounterId String
+  encounter   Encounter          @relation(fields: [encounterId], references: [id])
+  items       PrescriptionItem[]
+  status      String             // DRAFT, SUBMITTED, DISPENSED
+  totalAmount Float
+  createdAt   DateTime           @default(now())
+}
+
+model PrescriptionItem {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id])
+  kfaCode        String       // KFA Kemenkes Medicine Code
+  medicineName   String
+  dosage         String       // e.g. 3x1 tablet
+  quantity       Int
+  price          Float
+  batchNumber    String?
+  expiryDate     DateTime?
+}
+
+model LabOrder {
+  id          String      @id @default(uuid())
+  encounterId String
+  encounter   Encounter   @relation(fields: [encounterId], references: [id])
+  testCode    String      // LOINC Code
+  testName    String      // Hematologi Lengkap, LFT, Glukosa
+  status      String      // ORDERED, SPECIMEN_RECEIVED, COMPLETED
+  results     LabResult[]
+  createdAt   DateTime    @default(now())
+}
+
+model LabResult {
+  id             String   @id @default(uuid())
+  labOrderId     String
+  labOrder       LabOrder @relation(fields: [labOrderId], references: [id])
+  parameterName  String   // Hemoglobin, Leukosit, Trombosit
+  value          String
+  unit           String   // g/dL, /uL
+  referenceRange String   // 13.0 - 17.5
+  isAbnormal     Boolean  @default(false)
+  isPanicValue   Boolean  @default(false)
+  validatedById  String?
+  validatedBy    User?    @relation("DoctorLabSign", fields: [validatedById], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model RadOrder {
+  id          String      @id @default(uuid())
+  encounterId String
+  encounter   Encounter   @relation(fields: [encounterId], references: [id])
+  modality    String      // X-RAY, CT-SCAN, MRI, USG
+  bodyPart    String      // Chest PA, Head CT
+  status      String      // ORDERED, IN_PROGRESS, COMPLETED
+  dicomStudyUid String?
+  pacsReport  PacsReport?
+  createdAt   DateTime    @default(now())
+}
+
+model PacsReport {
+  id             String   @id @default(uuid())
+  radOrderId     String   @unique
+  radOrder       RadOrder @relation(fields: [radOrderId], references: [id])
+  radiologistId  String
+  radiologist    User     @relation("RadiologistReport", fields: [radiologistId], references: [id])
+  findings       String
+  impression     String
+  imageUrl       String?
+  createdAt      DateTime @default(now())
+}
+
+model Billing {
+  id            String    @id @default(uuid())
+  patientId     String
+  patient       Patient   @relation(fields: [patientId], references: [id])
+  invoiceNumber String    @unique
+  totalAmount   Float
+  bpjsCovered   Float     @default(0)
+  patientPay    Float
+  status        String    @default("UNPAID") // UNPAID, PARTIAL, PAID
+  paymentMethod String?   // CASH, QRIS, VA_BCA, VA_MANDIRI
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model SatusehatSyncLog {
+  id           String   @id @default(uuid())
+  resourceType String   // Patient, Encounter, Condition, Observation, MedicationRequest
+  resourceId   String
+  status       String   // SUCCESS, FAILED
+  payload      String   // JSON FHIR string
+  response     String?  // Kemenkes Server Response
+  syncedAt     DateTime @default(now())
+}
