@@ -529,13 +529,14 @@ export const useHospitalStore = create<HospitalStoreState>((set) => ({
       if (labTests.length > 0) {
         const labItem: LabOrder = {
           id: `lab-${Date.now()}`,
-          orderNo: `LAB-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          encounterId: 'enc-current',
           mrn,
           patientName,
-          testCategory: 'Hematologi & Kimia Klinik',
-          status: 'IN_PROGRESS',
-          items: labTests.map((t) => ({ name: t, result: 'Diproses LIS...', normalRange: '-', unit: '-', isPanicValue: false })),
-          orderedBy: doctorName,
+          testName: labTests.join(', '),
+          loincCode: '24323-8',
+          status: 'TESTING',
+          sampleBarcode: `SMP-${Math.floor(100000 + Math.random() * 900000)}`,
+          results: labTests.map((t) => ({ parameter: t, value: 'Diproses LIS...', unit: '-', refRange: '-', isAbnormal: false, isPanicValue: false })),
           createdAt: new Date().toISOString()
         };
         newLabOrders.unshift(labItem);
@@ -547,14 +548,14 @@ export const useHospitalStore = create<HospitalStoreState>((set) => ({
       if (radTests.length > 0) {
         const radItem: PacsStudy = {
           id: `rad-${Date.now()}`,
-          accessionNo: `ACC-${Math.floor(100000 + Math.random() * 900000)}`,
+          radOrderId: `ACC-${Math.floor(100000 + Math.random() * 900000)}`,
           mrn,
           patientName,
-          modality: 'CR',
+          modality: 'X-RAY',
           bodyPart: radTests[0],
           studyDate: new Date().toISOString().slice(0, 10),
-          status: 'UNREAD',
-          imageUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=800&q=80',
+          dicomFrames: ['frame-1'],
+          status: 'CAPTURED',
           radiologistName: 'dr. Maya Sp.Rad'
         };
         newPacs.unshift(radItem);
