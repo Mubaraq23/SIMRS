@@ -5,6 +5,7 @@ import { TrendingUp, FileText, CheckCircle2, Search, DollarSign, Calculator, Shi
 import { useHospitalStore } from '@/lib/store/useHospitalStore';
 import { calculateInacbg, InacbgResult } from '@/lib/bpjs/inacbg-calculator';
 import { useToast } from '@/components/ui/ToastProvider';
+import UniversalPrintModal from '@/components/print/UniversalPrintModal';
 
 export default function BpjsPage() {
   const { activePatient } = useHospitalStore();
@@ -15,6 +16,7 @@ export default function BpjsPage() {
   const [procedureIcd9, setProcedureIcd9] = useState('88.72');
   const [classType, setClassType] = useState<'VIP' | 'KELAS_1' | 'KELAS_2' | 'KELAS_3'>('KELAS_1');
   const [inacbgResult, setInacbgResult] = useState<InacbgResult | null>(null);
+  const [showPrintSep, setShowPrintSep] = useState(false);
 
   const handleCalculateInacbg = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +94,10 @@ export default function BpjsPage() {
             </div>
 
             <button
-              onClick={() => showToast({ type: 'success', title: 'SEP Diterbitkan', message: `SEP BPJS ${sepNumber} berhasil dicetak!` })}
+              onClick={() => {
+                setShowPrintSep(true);
+                showToast({ type: 'success', title: 'SEP Diterbitkan', message: `SEP BPJS ${sepNumber} siap dicetak!` });
+              }}
               className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold rounded-2xl shadow-lg shadow-emerald-600/30 transition hover:scale-105"
             >
               Cetak SEP BPJS (VClaim API)
@@ -170,6 +175,16 @@ export default function BpjsPage() {
           )}
         </div>
       </div>
+
+      {/* Universal Print Modal for SEP BPJS */}
+      <UniversalPrintModal
+        isOpen={showPrintSep}
+        onClose={() => setShowPrintSep(false)}
+        docType="SEP_BPJS"
+        patientName={activePatient?.name || 'Budi Santoso'}
+        mrn={activePatient?.mrn || 'RM-2026-08-0001'}
+        invoiceNo={sepNumber}
+      />
     </div>
   );
 }
