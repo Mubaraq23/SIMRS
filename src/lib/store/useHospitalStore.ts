@@ -73,6 +73,23 @@ interface HospitalStoreState {
   medicalStaff: MedicalStaff[];
   pmkpIncidents: PmkpIncident[];
   addPmkpIncident: (incident: PmkpIncident) => void;
+
+  // Inter-module Workflow Integrations
+  registerAndEnqueuePatient: (patient: Patient, serviceUnit: string) => void;
+  createCompleteMedicalOrder: (order: {
+    mrn: string;
+    doctorName: string;
+    subjective: string;
+    objective: string;
+    assessment: string;
+    plan: string;
+    icd10Code: string;
+    icd10Name: string;
+    prescriptions?: { name: string; qty: number; price: number }[];
+    labTests?: string[];
+    radTests?: string[];
+  }) => void;
+  admitPatientToBedRoom: (mrn: string, bedId: string, dailyRate: number) => void;
 }
 
 const INITIAL_BRANCHES: HospitalBranch[] = [
@@ -429,5 +446,187 @@ export const useHospitalStore = create<HospitalStoreState>((set) => ({
       severity: 'MODERATE'
     }
   ],
-  addPmkpIncident: (incident) => set((state) => ({ pmkpIncidents: [incident, ...state.pmkpIncidents] }))
+  addPmkpIncident: (incident) => set((state) => ({ pmkpIncidents: [incident, ...state.pmkpIncidents] })),
+
+  // Inter-module Workflow Integrations Implementation
+  registerAndEnqueuePatient: (newPatient, serviceUnit) =>
+    set((state) => {
+      const qNum = `A-${Math.floor(100 + Math.random() * 900)}`;
+      const newQueueItem = { number: qNum, service: serviceUnit, status: 'WAITING' as const };
+      const satLog: SatusehatTelemetry = {
+        id: `sat-${Date.now()}`,
+        resourceType: 'Patient',
+        resourceId: newPatient.id,
+        satusehatId: `P-${Math.floor(100000 + Math.random() * 900000)}`,
+        status: 'SUCCESS',
+        syncTime: new Date().toLocaleTimeString('id-ID'),
+        httpCode: 201
+      };
+      const regFee = { description: `Pendaftaran Admisi Pasien Baru (${serviceUnit})`, category: 'Registration', amount: 50000 };
+      const existingInv = state.billingInvoices.find((inv) => inv.mrn === newPatient.mrn);
+      let updatedInvoices = state.billingInvoices;
+      if (existingInv) {
+        updatedInvoices = state.billingInvoices.map((inv) =>
+          inv.mrn === newPatient.mrn ? { ...inv, items: [...inv.items, regFee], totalAmount: inv.totalAmount + 50000, patientPayable: inv.patientPayable + 50000 } : inv
+        );
+      } else {
+        const newInv: BillingInvoice = {
+          id: `inv-${Date.now()}`,
+          invoiceNo: `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+          mrn: newPatient.mrn,
+          patientName: newPatient.name,
+          items: [regFee],
+          totalAmount: 50000,
+          bpjsCovered: newPatient.bpjsCardNo ? 50000 : 0,
+          patientPayable: newPatient.bpjsCardNo ? 0 : 50000,
+          status: 'UNPAID',
+          createdAt: new Date().toISOString()
+        };
+        updatedInvoices = [newInv, ...state.billingInvoices];
+      }
+      return {
+        patients: [newPatient, ...state.patients],
+        activePatient: newPatient,
+        queueList: [newQueueItem, ...state.queueList],
+        satusehatLogs: [satLog, ...state.satusehatLogs],
+        billingInvoices: updatedInvoices
+      };
+    }),
+
+  createCompleteMedicalOrder: ({ mrn, doctorName, subjective, objective, assessment, plan, icd10Code, icd10Name, prescriptions = [], labTests = [], radTests = [] }) =>
+    set((state) => {
+      const patient = state.patients.find((p) => p.mrn === mrn) || state.activePatient;
+      const patientName = patient?.name || 'Pasien';
+
+      // 1. Add CPPT
+      const cppt: CpptNote = {
+        id: `c-${Date.now()}`,
+        encounterId: 'enc-current',
+        authorName: doctorName,
+        authorRole: 'DOKTER',
+        subjective,
+        objective,
+        assessment: `${assessment} (${icd10Code})`,
+        plan,
+        icd10Code,
+        icd10Name,
+        digitalSignatureHash: `eSign-RSA256-${Math.random().toString(36).substring(2, 10)}`,
+        createdAt: new Date().toISOString()
+      };
+
+      // 2. Billing Items
+      const billingItems: { description: string; category: string; amount: number }[] = [
+        { description: `Jasa Medis ${doctorName}`, category: 'Doctor Fee', amount: 250000 }
+      ];
+
+      // 3. Process Prescriptions
+      prescriptions.forEach((rx) => {
+        billingItems.push({ description: `Obat: ${rx.name} (x${rx.qty})`, category: 'Farmasi', amount: rx.price * rx.qty });
+      });
+
+      // 4. Process Lab
+      const newLabOrders: LabOrder[] = [...state.labOrders];
+      if (labTests.length > 0) {
+        const labItem: LabOrder = {
+          id: `lab-${Date.now()}`,
+          orderNo: `LAB-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          mrn,
+          patientName,
+          testCategory: 'Hematologi & Kimia Klinik',
+          status: 'IN_PROGRESS',
+          items: labTests.map((t) => ({ name: t, result: 'Diproses LIS...', normalRange: '-', unit: '-', isPanicValue: false })),
+          orderedBy: doctorName,
+          createdAt: new Date().toISOString()
+        };
+        newLabOrders.unshift(labItem);
+        billingItems.push({ description: `Laboratorium: ${labTests.join(', ')}`, category: 'Penunjang Lab', amount: 350000 });
+      }
+
+      // 5. Process PACS Radiologi
+      const newPacs: PacsStudy[] = [...state.pacsStudies];
+      if (radTests.length > 0) {
+        const radItem: PacsStudy = {
+          id: `rad-${Date.now()}`,
+          accessionNo: `ACC-${Math.floor(100000 + Math.random() * 900000)}`,
+          mrn,
+          patientName,
+          modality: 'CR',
+          bodyPart: radTests[0],
+          studyDate: new Date().toISOString().slice(0, 10),
+          status: 'UNREAD',
+          imageUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=800&q=80',
+          radiologistName: 'dr. Maya Sp.Rad'
+        };
+        newPacs.unshift(radItem);
+        billingItems.push({ description: `Radiologi PACS: ${radTests.join(', ')}`, category: 'Penunjang Rad', amount: 400000 });
+      }
+
+      // 6. Update Billing
+      const existingInv = state.billingInvoices.find((inv) => inv.mrn === mrn);
+      let updatedInvoices = state.billingInvoices;
+      if (existingInv) {
+        const updatedItems = [...existingInv.items, ...billingItems];
+        const newTotal = updatedItems.reduce((acc, curr) => acc + curr.amount, 0);
+        const newPayable = Math.max(0, newTotal - existingInv.bpjsCovered);
+        updatedInvoices = state.billingInvoices.map((inv) =>
+          inv.mrn === mrn ? { ...inv, items: updatedItems, totalAmount: newTotal, patientPayable: newPayable } : inv
+        );
+      } else {
+        const total = billingItems.reduce((acc, curr) => acc + curr.amount, 0);
+        const newInv: BillingInvoice = {
+          id: `inv-${Date.now()}`,
+          invoiceNo: `INV-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+          mrn,
+          patientName,
+          items: billingItems,
+          totalAmount: total,
+          bpjsCovered: patient?.bpjsCardNo ? Math.round(total * 0.8) : 0,
+          patientPayable: patient?.bpjsCardNo ? Math.round(total * 0.2) : total,
+          status: 'UNPAID',
+          createdAt: new Date().toISOString()
+        };
+        updatedInvoices = [newInv, ...state.billingInvoices];
+      }
+
+      // 7. SATUSEHAT Sync Log
+      const fhirLog: SatusehatTelemetry = {
+        id: `sat-${Date.now()}`,
+        resourceType: 'Condition',
+        resourceId: `cond-${Date.now()}`,
+        satusehatId: `COND-${Math.floor(10000 + Math.random() * 90000)}`,
+        status: 'SUCCESS',
+        syncTime: new Date().toLocaleTimeString('id-ID'),
+        httpCode: 201
+      };
+
+      return {
+        cpptNotes: [cppt, ...state.cpptNotes],
+        labOrders: newLabOrders,
+        pacsStudies: newPacs,
+        billingInvoices: updatedInvoices,
+        satusehatLogs: [fhirLog, ...state.satusehatLogs]
+      };
+    }),
+
+  admitPatientToBedRoom: (mrn, bedId, dailyRate) =>
+    set((state) => {
+      const bed = state.beds.find((b) => b.id === bedId);
+      const bedName = bed ? `${bed.roomName} (${bed.bedNumber})` : 'Kamar Inap';
+      const chargeItem = { description: `Akomodasi Kamar Inap: ${bedName}`, category: 'Bed Charge', amount: dailyRate };
+
+      const updatedBeds = state.beds.map((b) => (b.id === bedId ? { ...b, status: 'OCCUPIED' as const } : b));
+      const existingInv = state.billingInvoices.find((inv) => inv.mrn === mrn);
+      let updatedInvoices = state.billingInvoices;
+      if (existingInv) {
+        const updatedItems = [...existingInv.items, chargeItem];
+        const newTotal = updatedItems.reduce((acc, curr) => acc + curr.amount, 0);
+        updatedInvoices = state.billingInvoices.map((inv) =>
+          inv.mrn === mrn ? { ...inv, items: updatedItems, totalAmount: newTotal, patientPayable: Math.max(0, newTotal - inv.bpjsCovered) } : inv
+        );
+      }
+      return {
+        beds: updatedBeds,
+        billingInvoices: updatedInvoices
+      };
+    })
 }));

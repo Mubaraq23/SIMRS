@@ -41,7 +41,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import AIIcdCoder from '@/components/ai/AIIcdCoder';
 
 export default function EmrPage() {
-  const { activePatient, cpptNotes, addCpptNote, patients, setActivePatient } = useHospitalStore();
+  const { activePatient, cpptNotes, addCpptNote, patients, setActivePatient, createCompleteMedicalOrder } = useHospitalStore();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'soap' | 'ttv' | 'cpoe' | 'diagnostics' | 'history'>('soap');
@@ -108,34 +108,25 @@ export default function EmrPage() {
       return;
     }
 
-    const newNote: CpptNote = {
-      id: `c-${Date.now()}`,
-      encounterId: 'enc-current',
-      authorName: 'dr. Ahmad Pratama, Sp.PD',
-      authorRole: 'DOKTER',
+    createCompleteMedicalOrder({
+      mrn: activePatient?.mrn || 'RM-2026-08-0001',
+      doctorName: 'dr. Ahmad Pratama, Sp.PD',
       subjective,
       objective,
-      assessment: `${assessment} (ICD-10: ${icd10Code})`,
-      plan: `${plan}\nResep: ${prescribedMeds.join(', ')}`,
-      vitals: {
-        systolic,
-        diastolic,
-        heartRate,
-        respiratoryRate,
-        temperature,
-        spo2,
-        news2Score: news2.score,
-        news2Risk: news2.riskLevel,
-        recordedAt: new Date().toISOString()
-      },
+      assessment: `${assessment || 'Hipertensi Primer'} (ICD-10: ${icd10Code})`,
+      plan,
       icd10Code,
       icd10Name,
-      digitalSignatureHash: `eSign-RSA256-${Math.random().toString(36).substring(2, 10)}`,
-      createdAt: new Date().toISOString()
-    };
+      prescriptions: prescribedMeds.map((m) => ({ name: m, qty: 10, price: 14500 })),
+      labTests: ['Hematologi Lengkap', 'Kimia Darah (LFT)'],
+      radTests: ['Thorax X-Ray PA View']
+    });
 
-    addCpptNote(newNote);
-    showToast({ type: 'success', title: 'CPPT Tersimpan', message: 'Catatan Medis CPPT & EMR berhasil disignature digital!' });
+    showToast({
+      type: 'success',
+      title: 'CPPT & Inter-Module Order Tersimpan',
+      message: 'Catatan EMR tersimpan, e-Resep Farmasi, Order Lab LIS, PACS Radiologi, & Billing Invoice berhasil diperbarui otomatis!'
+    });
     setSubjective('');
     setObjective('');
     setAssessment('');

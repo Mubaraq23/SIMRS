@@ -19,7 +19,7 @@ import { Patient } from '@/types/simrs';
 import { useToast } from '@/components/ui/ToastProvider';
 
 export default function PendaftaranPage() {
-  const { patients, addPatient, setActivePatient } = useHospitalStore();
+  const { patients, addPatient, setActivePatient, registerAndEnqueuePatient } = useHospitalStore();
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
@@ -75,10 +75,13 @@ export default function PendaftaranPage() {
       createdAt: new Date().toISOString()
     };
 
-    addPatient(newP);
-    setActivePatient(newP);
+    registerAndEnqueuePatient(newP, 'Poliklinik Penyakit Dalam');
     setShowNewModal(false);
-    showToast({ type: 'success', title: 'Pasien Terdaftar!', message: `No. Rekam Medis: ${newMrn}` });
+    showToast({
+      type: 'success',
+      title: 'Pasien Terdaftar & Antrian Diaktifkan!',
+      message: `No. Rekam Medis: ${newMrn} | Otomatis masuk antrian & SATUSEHAT Sync Log.`
+    });
   };
 
   return (
