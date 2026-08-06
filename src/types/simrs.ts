@@ -6,6 +6,8 @@ export type UserRole =
   | 'DOKTER'
   | 'PERAWAT'
   | 'APOTEKER'
+  | 'FARMASI'
+  | 'ADMIN'
   | 'PETUGAS_LAB'
   | 'RADIOGRAFER'
   | 'KASIR'

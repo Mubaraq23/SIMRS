@@ -38,6 +38,7 @@ import { calculateNEWS2 } from '@/lib/emr/news-calculator';
 import { checkCdssAlerts, CdssAlert } from '@/lib/emr/cdss-engine';
 import { CpptNote } from '@/types/simrs';
 import { useToast } from '@/components/ui/ToastProvider';
+import AIIcdCoder from '@/components/ai/AIIcdCoder';
 
 export default function EmrPage() {
   const { activePatient, cpptNotes, addCpptNote, patients, setActivePatient } = useHospitalStore();
@@ -343,6 +344,16 @@ export default function EmrPage() {
                   required
                 />
               </div>
+
+              {/* AI Clinical ICD Coder Assistant */}
+              <AIIcdCoder
+                soapNote={`${subjective} ${objective}`}
+                onSelectIcd={(code, name) => {
+                  setIcd10Code(code);
+                  setIcd10Name(name);
+                  if (!assessment) setAssessment(name);
+                }}
+              />
 
               {/* A - Assessment */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -24,6 +24,7 @@ import {
 import { useHospitalStore } from '@/lib/store/useHospitalStore';
 import { UserRole } from '@/types/simrs';
 import { useToast } from '../ui/ToastProvider';
+import KemenkesReportModal from '../reports/KemenkesReportModal';
 
 export default function TopHeader() {
   const pathname = usePathname();
@@ -32,6 +33,7 @@ export default function TopHeader() {
   const [timeString, setTimeString] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -156,6 +158,15 @@ export default function TopHeader() {
           <span className="text-[11px]">SATUSEHAT Live</span>
         </div>
 
+        {/* Laporan Kemenkes RL Button */}
+        <button
+          onClick={() => setShowReportModal(true)}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span>Laporan RL SIRS</span>
+        </button>
+
         {/* Dark / Light Mode Switcher */}
         <button
           onClick={toggleTheme}
@@ -245,6 +256,8 @@ export default function TopHeader() {
           )}
         </div>
       </div>
+
+      <KemenkesReportModal isOpen={showReportModal} onClose={() => setShowReportModal(false)} />
     </header>
   );
 }

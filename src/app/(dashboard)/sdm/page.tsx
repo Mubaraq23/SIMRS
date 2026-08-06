@@ -1,30 +1,81 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Building2, ShieldAlert, Award, Calendar, Clock, UserCheck, Search, Download, Plus } from 'lucide-react';
+import { Building2, ShieldAlert, Award, Calendar, Clock, UserCheck, Search, Download, Plus, X } from 'lucide-react';
 import { useHospitalStore } from '@/lib/store/useHospitalStore';
 import { useToast } from '@/components/ui/ToastProvider';
+import { MedicalStaff, UserRole } from '@/types/simrs';
 
 export default function SdmPage() {
   const { medicalStaff } = useHospitalStore();
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [staffList, setStaffList] = useState<MedicalStaff[]>(medicalStaff);
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  const filteredStaff = medicalStaff.filter(
+  // Form states
+  const [name, setName] = useState('');
+  const [role, setRole] = useState<UserRole>('DOKTER');
+  const [strNumber, setStrNumber] = useState('STR-31.1.1.100.2.26.');
+  const [strExpiry, setStrExpiry] = useState('2028-12-31');
+  const [sipNumber, setSipNumber] = useState('SIP-503/449/DOKTER/2026');
+  const [sipExpiry, setSipExpiry] = useState('2027-12-31');
+  const [department, setDepartment] = useState('Poliklinik Jantung');
+
+  const filteredStaff = staffList.filter(
     (s) =>
       s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.sipNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleAddStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name) return;
+
+    const newStaff: MedicalStaff = {
+      id: `st-${Date.now()}`,
+      name,
+      role,
+      strNumber,
+      strExpiry,
+      sipNumber,
+      sipExpiry,
+      department,
+      status: 'ACTIVE'
+    };
+
+    setStaffList([newStaff, ...staffList]);
+    setShowAddModal(false);
+    showToast({ type: 'success', title: 'Pegawai Baru Didaftarkan', message: `${name} (${role}) berhasil didaftarkan di ${department}.` });
+    setName('');
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-amber-400" /> SDM, Credentialing & Legalitas Tenaga Medis
+          </h2>
+          <p className="text-xs text-slate-400">Monitoring Surat Tanda Registrasi (STR), Surat Izin Praktik (SIP) & Roster Shift Karyawan</p>
+        </div>
+
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-amber-500/20 transition"
+        >
+          <Plus className="w-4 h-4" /> + Tambah Pegawai Medis
+        </button>
+      </div>
+
       {/* Top HR KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Tenaga Medis</span>
-          <p className="text-2xl font-black text-amber-400 font-mono">428 Pegawai</p>
-          <span className="text-[10px] text-amber-400 font-semibold">Dokter: 64 | Perawat: 240 | Penunjang: 124</span>
+          <p className="text-2xl font-black text-amber-400 font-mono">{staffList.length + 426} Pegawai</p>
+          <span className="text-[10px] text-amber-400 font-semibold">Dokter: 65 | Perawat: 240 | Penunjang: 124</span>
         </div>
 
         <div className="glass-card rounded-2xl p-4 border border-slate-800 space-y-1">
@@ -78,7 +129,7 @@ export default function SdmPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800 sticky top-0">
+            <thead className="bg-slate-950 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
                 <th className="p-3.5">Nama Tenaga Medis / Perawat</th>
                 <th className="p-3.5">Role & Departemen</th>
@@ -124,6 +175,101 @@ export default function SdmPage() {
           </table>
         </div>
       </div>
+
+      {/* Modal: Tambah Pegawai Medis */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="glass-panel w-full max-w-md rounded-2xl border border-slate-700 p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-amber-400" /> Form Tambah Pegawai Medis Baru
+              </h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStaff} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Nama Lengkap & Gelar *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Contoh: dr. Bambang Sudiro, Sp.JP"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Peran (Role) *</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100"
+                  >
+                    <option value="DOKTER">DOKTER</option>
+                    <option value="PERAWAT">PERAWAT</option>
+                    <option value="FARMASI">FARMASI</option>
+                    <option value="KASIR">KASIR</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Departemen / Unit *</label>
+                  <input
+                    type="text"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Nomor STR Kemenkes *</label>
+                <input
+                  type="text"
+                  value={strNumber}
+                  onChange={(e) => setStrNumber(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Nomor SIP Dinkes *</label>
+                <input
+                  type="text"
+                  value={sipNumber}
+                  onChange={(e) => setSipNumber(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-slate-100 font-mono"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition"
+                >
+                  Daftarkan Pegawai
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
