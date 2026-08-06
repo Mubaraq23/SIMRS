@@ -9,7 +9,7 @@ export class SatusehatController {
       fhirVersion: 'R4',
       kemenkesUrl: 'https://api-satusehat.kemkes.go.id/fhir-r4/v1',
       orgId: '100000123',
-      uptime: '99.98%'
+      uptime: '99.98%',
     };
   }
 
@@ -20,7 +20,7 @@ export class SatusehatController {
       success: true,
       httpCode: 201,
       satusehatId: fhirId,
-      syncedAt: new Date().toISOString()
+      syncedAt: new Date().toISOString(),
     };
   }
 }

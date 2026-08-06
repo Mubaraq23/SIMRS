@@ -16,7 +16,7 @@ export class EmrController {
       mrn,
       status: 'ACTIVE',
       totalRecords: 12,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 }
