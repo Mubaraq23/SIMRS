@@ -39,12 +39,14 @@ import { checkCdssAlerts, CdssAlert } from '@/lib/emr/cdss-engine';
 import { CpptNote } from '@/types/simrs';
 import { useToast } from '@/components/ui/ToastProvider';
 import AIIcdCoder from '@/components/ai/AIIcdCoder';
+import UniversalPrintModal from '@/components/print/UniversalPrintModal';
 
 export default function EmrPage() {
   const { activePatient, cpptNotes, addCpptNote, patients, setActivePatient, createCompleteMedicalOrder } = useHospitalStore();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'soap' | 'ttv' | 'cpoe' | 'diagnostics' | 'history'>('soap');
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // SOAP Input State
   const [subjective, setSubjective] = useState('');
@@ -168,6 +170,13 @@ export default function EmrPage() {
             ) : (
               <span className="text-xs text-slate-400 font-medium">Bebas Riwayat Alergi Obat</span>
             )}
+
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/30 transition hover:scale-105"
+            >
+              <Printer className="w-4 h-4" /> Cetak Resume Medis (CPPT)
+            </button>
           </div>
         </div>
       )}
@@ -531,6 +540,15 @@ export default function EmrPage() {
           </div>
         </div>
       )}
+
+      {/* Universal Document Print Modal for Resume Medis */}
+      <UniversalPrintModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        docType="RESUME_EMR"
+        patientName={activePatient?.name || 'Budi Santoso'}
+        mrn={activePatient?.mrn || 'RM-2026-08-0001'}
+      />
     </div>
   );
 }

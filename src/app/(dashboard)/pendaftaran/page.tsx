@@ -17,12 +17,19 @@ import {
 import { useHospitalStore } from '@/lib/store/useHospitalStore';
 import { Patient } from '@/types/simrs';
 import { useToast } from '@/components/ui/ToastProvider';
+import UniversalPrintModal, { PrintDocType } from '@/components/print/UniversalPrintModal';
 
 export default function PendaftaranPage() {
   const { patients, addPatient, setActivePatient, registerAndEnqueuePatient } = useHospitalStore();
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [printDoc, setPrintDoc] = useState<{ isOpen: boolean; type: PrintDocType; name: string; mrn: string }>({
+    isOpen: false,
+    type: 'KARTU_PASIEN',
+    name: '',
+    mrn: ''
+  });
 
   // Form State
   const [nik, setNik] = useState('');
@@ -176,13 +183,22 @@ export default function PendaftaranPage() {
                       <span className="text-slate-500 font-mono">Umum / Non-BPJS</span>
                     )}
                   </td>
-                  <td className="p-3.5 text-right">
+                  <td className="p-3.5 text-right flex items-center justify-end gap-1.5">
                     <button
-                      onClick={() => showToast({ type: 'info', title: 'Cetak Kartu', message: `Kartu Pasien QR Code untuk ${patient.name} tercetak!` })}
+                      onClick={() => setPrintDoc({ isOpen: true, type: 'KARTU_PASIEN', name: patient.name, mrn: patient.mrn })}
                       className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-bold inline-flex items-center gap-1.5"
                     >
                       <Printer className="w-3.5 h-3.5 text-blue-400" /> Cetak Kartu
                     </button>
+
+                    {patient.bpjsCardNo && (
+                      <button
+                        onClick={() => setPrintDoc({ isOpen: true, type: 'SEP_BPJS', name: patient.name, mrn: patient.mrn })}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 text-[11px] font-bold inline-flex items-center gap-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-emerald-400" /> Cetak SEP
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -274,6 +290,15 @@ export default function PendaftaranPage() {
           </div>
         </div>
       )}
+
+      {/* Universal Document Print Modal */}
+      <UniversalPrintModal
+        isOpen={printDoc.isOpen}
+        onClose={() => setPrintDoc({ ...printDoc, isOpen: false })}
+        docType={printDoc.type}
+        patientName={printDoc.name}
+        mrn={printDoc.mrn}
+      />
     </div>
   );
 }

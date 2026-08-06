@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useHospitalStore } from '@/lib/store/useHospitalStore';
 import { useToast } from '@/components/ui/ToastProvider';
+import UniversalPrintModal from '@/components/print/UniversalPrintModal';
 
 export default function KasirBillingPage() {
   const { billingInvoices, payInvoice, patients, addBillingItemToPatient } = useHospitalStore();
@@ -387,6 +388,16 @@ export default function KasirBillingPage() {
           </div>
         </div>
       )}
+
+      {/* Universal Print Modal for Receipt */}
+      <UniversalPrintModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        docType="KWITANSI"
+        patientName={selectedInvoice.patientName}
+        mrn={selectedInvoice.mrn}
+        invoiceNo={selectedInvoice.invoiceNo}
+      />
     </div>
   );
 }

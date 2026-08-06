@@ -81,3 +81,37 @@ body.light {
 ::-webkit-scrollbar-thumb:hover {
   background: #2563eb;
 }
+
+/* @media print Rules for Universal Hospital Document Printing */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12pt !important;
+  }
+
+  header, sidebar, nav, .no-print, button, .glass-panel-overlay {
+    display: none !important;
+  }
+
+  .printable-document {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .printable-document * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+}
